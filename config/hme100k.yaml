@@ -11,8 +11,8 @@ trainer:
         monitor: val_ExpRate
         mode: max
         filename: '{epoch}-{step}-{val_ExpRate:.4f}'
-  gpus: 0, 1,  2, 3
-  accelerator: ddp
+  gpus: 1
+  accelerator: null
   max_epochs: 70
   deterministic: true
   check_val_every_n_epoch: 2
@@ -32,7 +32,7 @@ model:
   cross_coverage: true
   self_coverage: true
   # beam search
-  beam_size: 10
+  beam_size: 1
   max_len: 200
   alpha: 1.0
   early_stopping: false
@@ -50,5 +50,5 @@ data:
   scale_to_limit: false
   train_batch_size: 8
   eval_batch_size: 4
-  num_workers: 5
+  num_workers: 0
   scale_aug: false

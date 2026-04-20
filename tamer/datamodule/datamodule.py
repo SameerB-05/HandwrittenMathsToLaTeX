@@ -159,7 +159,7 @@ class HMEDatamodule(pl.LightningDataModule):
         scale_to_limit: bool = True,
         train_batch_size: int = 8,
         eval_batch_size: int = 4,
-        num_workers: int = 5,
+        num_workers: int = 0,
         scale_aug: bool = False,
     ) -> None:
         super().__init__()

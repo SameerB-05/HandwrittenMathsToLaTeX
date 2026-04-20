@@ -20,7 +20,7 @@ def main(
     ckp_path = os.path.join(ckp_folder, fnames[0])
     print(f"Test with fname: {fnames[0]}")
 
-    trainer = Trainer(logger=False, gpus=1)
+    trainer = Trainer(logger=False, accelerator="gpu", devices=1)
 
     dm = HMEDatamodule(
         folder=folder,

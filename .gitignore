@@ -144,3 +144,31 @@ lg_temp/
 
 !lightning_logs/version_3/
 !lightning_logs/version_3/**
+
+*.txt
+
+# Personal temporary files
+*.zip
+*.png
+*.jpg
+*.jpeg
+
+# Duplicate accidental files
+* (1).py
+
+# Local testing artifacts
+test_image.png
+test_image2.png
+test_image3.png
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Checkpoints / model weights
+*.ckpt
+*.pth
+*.pt
+
+# Logs
+*.log

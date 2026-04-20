@@ -13,7 +13,7 @@ class CROHMEVocab:
         self.word2idx["<sos>"] = self.SOS_IDX
         self.word2idx["<eos>"] = self.EOS_IDX
 
-        with open(dict_path, "r") as f:
+        with open(dict_path, "r", encoding="utf-8") as f:
             for line in f.readlines():
                 w = line.strip()
                 self.word2idx[w] = len(self.word2idx)

@@ -11,8 +11,8 @@ trainer:
         monitor: val_ExpRate
         mode: max
         filename: '{epoch}-{step}-{val_ExpRate:.4f}'
-  gpus: 0, 1, 2, 3
-  accelerator: ddp
+  gpus: 1
+  accelerator: null
   check_val_every_n_epoch: 2
   max_epochs: 400
   deterministic: true
@@ -49,5 +49,5 @@ data:
   scale_to_limit: true
   train_batch_size: 8
   eval_batch_size: 2
-  num_workers: 5
+  num_workers: 0
   scale_aug: false
