@@ -79,14 +79,3 @@ build_pkl.py               # Dataset pickle creation
 single_inference.py        # Predict LaTeX from image
 check_oov.py               # OOV token analysis
 inkmlinkmlimage_v2.py      # InkML to image conversion
-
-## Acknowledgment
-
-This project is built upon the original TAMER repository:
-
-https://github.com/qingzhenduyu/TAMER  
-(TAMER, AAAI 2025)
-
-The original authors deserve full credit for the base architecture and core implementation.
-
-This repository contains my personal extensions, experiments, and modifications developed for learning and research purposes, including preprocessing utilities, vocabulary expansion, model adaptation, fine-tuning, and evaluation scripts.
