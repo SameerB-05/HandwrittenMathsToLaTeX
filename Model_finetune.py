@@ -14,18 +14,18 @@ from tamer.model.tamer import TAMER
 # =========================
 # CONFIG
 # =========================
-CKPT_PATH   = "lightning_logs/version_4/checkpoints/epoch=51-step=162967_vocab334.ckpt"
-DICT_PATH   = "lightning_logs/version_4/dictionary.txt"
+CKPT_PATH   = "lightning_logs/version_5/checkpoints/epoch=51-step=162967_vocab334.ckpt"
+DICT_PATH   = "lightning_logs/version_5/dictionary.txt"
 IMAGES_PKL  = "data/mathwriting/train/images.pkl"
 CAPTION_TXT = "data/mathwriting/train/caption.txt"
 
-NUM_EPOCHS  = 5
+NUM_EPOCHS  = 10
 BATCH_SIZE  = 32
 LR          = 1e-5
 H_HI, W_HI = 128, 512
 MAX_LEN     = 200
 DEVICE      = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-SAVE_DIR    = Path("lightning_logs/version_4/checkpoints")
+SAVE_DIR    = Path("lightning_logs/version_5/checkpoints")
 
 
 # =========================

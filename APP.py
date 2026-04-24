@@ -6,7 +6,7 @@ from torchvision import transforms
 from tamer.lit_tamer import LitTAMER
 from tamer.datamodule import vocab
 
-# ── paths ──────────────────────────────────────────────────────────────────
+# ── paths ─────vocab.init─────────────────────────────────────────────────────────────
 V1_CKPT  = r"lightning_logs\version_1\checkpoints\epoch=51-step=162967-val_ExpRate=0.6851.ckpt"
 V4_CKPT  = r"lightning_logs\version_4\checkpoints\finetune_epoch5_loss0.7993.ckpt"
 DICT_V1  = r"data\hme100k\dictionary.txt"               # 248-token vocab
@@ -54,6 +54,13 @@ model_v4.tamer_model.decoder.proj          = torch.nn.Linear(256, 334)
 
 finetuned_weights = torch.load(V4_CKPT, map_location="cpu")
 model_v4.tamer_model.load_state_dict(finetuned_weights, strict=False)
+
+# manually load the vocab-expanded layers since strict=False skips shape mismatches
+sd = finetuned_weights
+model_v4.tamer_model.decoder.word_embed[0].weight.data = sd["decoder.word_embed.0.weight"]
+model_v4.tamer_model.decoder.proj.weight.data          = sd["decoder.proj.weight"]
+model_v4.tamer_model.decoder.proj.bias.data            = sd["decoder.proj.bias"]
+
 model_v4.eval()
 model_v4.to(DEVICE)
 
@@ -68,6 +75,7 @@ transform = transforms.Compose([
 app = Flask(__name__)
 
 # ── HTML ───────────────────────────────────────────────────────────────────
+# ── HTML ───────────────────────────────────────────────────────────────────
 HTML = """
 <!DOCTYPE html>
 <html lang="en">
@@ -75,6 +83,7 @@ HTML = """
   <meta charset="UTF-8"/>
   <title>Handwritten Math to LaTeX — Model Comparison</title>
   <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -97,16 +106,7 @@ HTML = """
       margin-bottom: 20px;
     }
 
-    input[type=file] { margin: 10px 0; font-size: 15px; }
-
-    #preview {
-      max-width: 100%;
-      max-height: 220px;
-      margin: 12px 0;
-      display: none;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-    }
+    input[type=file] { font-size: 15px; }
 
     button.primary {
       background: #ff6b00;
@@ -116,16 +116,44 @@ HTML = """
       font-size: 16px;
       border-radius: 6px;
       cursor: pointer;
-      margin-top: 10px;
     }
-    button.primary:hover    { background: #e55a00; }
-    button.primary:disabled { background: #ccc; cursor: not-allowed; }
+
+    button.primary:hover { background: #e55a00; }
+    button.primary:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
 
     #loading {
       display: none;
       color: #888;
-      margin-top: 12px;
+      margin-top: 14px;
       font-size: 15px;
+    }
+
+    /* Upload row horizontal layout */
+    .upload-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .upload-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #preview {
+      width: 180px;
+      max-height: 120px;
+      display: none;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      object-fit: contain;
+      background: #fff;
+      padding: 4px;
     }
 
     .comparison {
@@ -133,10 +161,16 @@ HTML = """
       grid-template-columns: 1fr 1fr;
       gap: 20px;
     }
+
     .comparison.visible { display: grid; }
 
     @media (max-width: 680px) {
       .comparison { grid-template-columns: 1fr; }
+
+      .upload-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
     }
 
     .model-box {
@@ -153,6 +187,7 @@ HTML = """
       color: #888;
       margin-bottom: 14px;
     }
+
     .model-title strong {
       font-size: 1rem;
       color: #222;
@@ -179,6 +214,7 @@ HTML = """
       word-break: break-all;
       line-height: 1.5;
     }
+
     .latex-code.error { color: #ff4444; }
 
     button.copy-btn {
@@ -191,6 +227,7 @@ HTML = """
       cursor: pointer;
       margin-top: 8px;
     }
+
     button.copy-btn:hover { background: #222; }
 
     .rendered-box {
@@ -205,18 +242,31 @@ HTML = """
     }
   </style>
 </head>
+
 <body>
 
-<h1>✏️ Handwritten Math → LaTeX &nbsp;·&nbsp; Model Comparison</h1>
+<h1>✏️ Handwritten Math → LaTeX · Model Comparison</h1>
 
 <div class="box">
   <h3>Upload a handwritten math image</h3>
-  <input type="file" id="fileInput" accept="image/*" onchange="previewImage()">
-  <br>
-  <img id="preview">
-  <br>
-  <button class="primary" id="convertBtn" onclick="convert()" disabled>Convert to LaTeX</button>
-  <div id="loading">⏳ Running beam search on both models, please wait…</div>
+
+  <div class="upload-row">
+
+    <div class="upload-controls">
+      <input type="file" id="fileInput" accept="image/*" onchange="previewImage()">
+
+      <button class="primary" id="convertBtn" onclick="convert()" disabled>
+        Convert to LaTeX
+      </button>
+    </div>
+
+    <img id="preview">
+
+  </div>
+
+  <div id="loading">
+    ⏳ Running beam search on both models, please wait…
+  </div>
 </div>
 
 <div class="comparison" id="comparison">
@@ -226,9 +276,14 @@ HTML = """
       <strong>Version 1</strong>
       vocab 248 · baseline
     </div>
+
     <div class="label">LaTeX Code</div>
     <div class="latex-code" id="v1-code"></div>
-    <button class="copy-btn" onclick="copyLatex('v1-code', this)">Copy</button>
+
+    <button class="copy-btn" onclick="copyLatex('v1-code', this)">
+      Copy
+    </button>
+
     <div class="label" style="margin-top:14px;">Rendered Expression</div>
     <div class="rendered-box" id="v1-rendered"></div>
   </div>
@@ -238,9 +293,14 @@ HTML = """
       <strong>Version 4</strong>
       vocab 334 · finetuned
     </div>
+
     <div class="label">LaTeX Code</div>
     <div class="latex-code" id="v4-code"></div>
-    <button class="copy-btn" onclick="copyLatex('v4-code', this)">Copy</button>
+
+    <button class="copy-btn" onclick="copyLatex('v4-code', this)">
+      Copy
+    </button>
+
     <div class="label" style="margin-top:14px;">Rendered Expression</div>
     <div class="rendered-box" id="v4-rendered"></div>
   </div>
@@ -248,81 +308,103 @@ HTML = """
 </div>
 
 <script>
-  function previewImage() {
-    const file = document.getElementById('fileInput').files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const prev = document.getElementById('preview');
-      prev.src = e.target.result;
-      prev.style.display = 'block';
-      document.getElementById('convertBtn').disabled = false;
-    };
-    reader.readAsDataURL(file);
+function previewImage() {
+  const file = document.getElementById('fileInput').files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+    const prev = document.getElementById('preview');
+    prev.src = e.target.result;
+    prev.style.display = 'block';
+
+    document.getElementById('convertBtn').disabled = false;
+  };
+
+  reader.readAsDataURL(file);
+}
+
+function setLoading(on) {
+  document.getElementById('loading').style.display = on ? 'block' : 'none';
+  document.getElementById('convertBtn').disabled = on;
+
+  if (on) {
+    ['v1-code','v4-code'].forEach(id => {
+      const el = document.getElementById(id);
+      el.className = 'latex-code';
+      el.textContent = 'Running…';
+    });
+
+    ['v1-rendered','v4-rendered'].forEach(id =>
+      document.getElementById(id).innerHTML = ''
+    );
+
+    document.getElementById('comparison').classList.add('visible');
   }
+}
 
-  function setLoading(on) {
-    document.getElementById('loading').style.display = on ? 'block' : 'none';
-    document.getElementById('convertBtn').disabled = on;
-    if (on) {
-      ['v1-code','v4-code'].forEach(id => {
-        const el = document.getElementById(id);
-        el.className = 'latex-code';
-        el.textContent = 'Running…';
-      });
-      ['v1-rendered','v4-rendered'].forEach(id =>
-        document.getElementById(id).innerHTML = ''
-      );
-      document.getElementById('comparison').classList.add('visible');
-    }
-  }
+function fillCard(prefix, data) {
+  const codeEl = document.getElementById(prefix + '-code');
+  const rendEl = document.getElementById(prefix + '-rendered');
 
-  function fillCard(prefix, data) {
-    const codeEl = document.getElementById(prefix + '-code');
-    const rendEl = document.getElementById(prefix + '-rendered');
-    if (data.error) {
-      codeEl.className = 'latex-code error';
-      codeEl.textContent = 'Error: ' + data.error;
-      rendEl.textContent = '';
-    } else {
-      codeEl.className = 'latex-code';
-      codeEl.textContent = data.latex;
-      rendEl.innerHTML = '\\(' + data.latex + '\\)';
-      MathJax.typesetPromise([rendEl]).catch(() => {
-        rendEl.textContent = '(Could not render)';
-      });
-    }
-  }
+  if (data.error) {
+    codeEl.className = 'latex-code error';
+    codeEl.textContent = 'Error: ' + data.error;
+    rendEl.textContent = '';
+  } else {
+    const latex = data.latex;
 
-  function convert() {
-    const file = document.getElementById('fileInput').files[0];
-    if (!file) { alert('Please select an image first!'); return; }
+    codeEl.className = 'latex-code';
+    codeEl.textContent = latex;
 
-    setLoading(true);
-    const fd = new FormData();
-    fd.append('image', file);
+    rendEl.innerHTML = '\\\\(' + latex + '\\\\)';
 
-    fetch('/predict', { method: 'POST', body: fd })
-      .then(r => r.json())
-      .then(data => {
-        setLoading(false);
-        fillCard('v1', data.v1);
-        fillCard('v4', data.v4);
-      })
-      .catch(err => {
-        setLoading(false);
-        alert('Request failed: ' + err);
-      });
-  }
-
-  function copyLatex(elId, btn) {
-    const text = document.getElementById(elId).textContent.trim();
-    navigator.clipboard.writeText(text).then(() => {
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = 'Copy', 2000);
+    MathJax.typesetPromise([rendEl]).catch(err => {
+      rendEl.textContent = '(Could not render: ' + latex + ')';
     });
   }
+}
+
+function convert() {
+  const file = document.getElementById('fileInput').files[0];
+
+  if (!file) {
+    alert('Please select an image first!');
+    return;
+  }
+
+  setLoading(true);
+
+  const fd = new FormData();
+  fd.append('image', file);
+
+  fetch('/predict', {
+    method: 'POST',
+    body: fd
+  })
+  .then(r => r.json())
+  .then(data => {
+    setLoading(false);
+    fillCard('v1', data.v1);
+    fillCard('v4', data.v4);
+  })
+  .catch(err => {
+    setLoading(false);
+    alert('Request failed: ' + err);
+  });
+}
+
+function copyLatex(elId, btn) {
+  const text = document.getElementById(elId).textContent.trim();
+
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
 </script>
+
 </body>
 </html>
 """

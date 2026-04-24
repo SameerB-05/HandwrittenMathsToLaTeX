@@ -28,6 +28,12 @@ finetuned_weights = torch.load(
 )
 model.tamer_model.load_state_dict(finetuned_weights, strict=False)
 
+# manually load the vocab-expanded layers since strict=False skips shape mismatches
+sd = finetuned_weights
+model.tamer_model.decoder.word_embed[0].weight.data = sd["decoder.word_embed.0.weight"]
+model.tamer_model.decoder.proj.weight.data          = sd["decoder.proj.weight"]
+model.tamer_model.decoder.proj.bias.data            = sd["decoder.proj.bias"]
+
 model.eval()
 model.to(DEVICE)
 print(f"Model ready on {DEVICE}!")
